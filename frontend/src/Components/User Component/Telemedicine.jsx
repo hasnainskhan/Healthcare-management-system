@@ -14,9 +14,7 @@ import {
 } from "@mui/material";
 
 const api = () => import.meta.env.VITE_API_URL;
-const authHeader = () => ({
-  Authorization: `Bearer ${localStorage.getItem("token")}`,
-});
+const getToken = () => localStorage.getItem("token");
 
 function Telemedicine() {
   const navigate = useNavigate();
@@ -24,6 +22,8 @@ function Telemedicine() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [session, setSession] = useState(null);
+  const [language, setLanguage] = useState("en");
+  const [physicianCountry, setPhysicianCountry] = useState("gb");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -36,11 +36,16 @@ function Telemedicine() {
     (async () => {
       try {
         const { data } = await axios.get(`${api()}/api/abi/session`, {
-          headers: authHeader(),
+          headers: { Authorization: `Bearer ${getToken()}` },
         });
         if (!cancelled) setSession(data);
       } catch (e) {
         if (!cancelled) {
+          if (e.response?.status === 401) {
+            localStorage.removeItem("token");
+            navigate("/login");
+            return;
+          }
           setError(
             e.response?.data?.message ||
               "Could not load telemedicine session."
@@ -62,16 +67,21 @@ function Telemedicine() {
     try {
       const { data } = await axios.post(
         `${api()}/api/abi/onboard`,
-        {},
-        { headers: authHeader() }
+        { language, physicianCountry },
+        { headers: { Authorization: `Bearer ${getToken()}` } }
       );
       setSession({
         onboarded: true,
-        abi_user_id: data.abby_user_id,
+        abi_user_id: data.uniqueId,
         widget_url: data.widget_url,
         instance_url: data.instance_url,
       });
     } catch (e) {
+      if (e.response?.status === 401) {
+        localStorage.removeItem("token");
+        navigate("/login");
+        return;
+      }
       const msg =
         e.response?.data?.message ||
         (e.response?.data?.errors &&
@@ -134,6 +144,40 @@ function Telemedicine() {
               You are not linked to ABI yet. Complete your profile (including
               date of birth), then register to open your personal widget.
             </Typography>
+            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 2 }}>
+              <Box sx={{ minWidth: 220 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Language (Abi code)
+                </Typography>
+                <input
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 8,
+                    border: "1px solid #d0d7de",
+                  }}
+                  placeholder="e.g. en, en_au, fr"
+                />
+              </Box>
+              <Box sx={{ minWidth: 220 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Physician country (ISO 3166-2)
+                </Typography>
+                <input
+                  value={physicianCountry}
+                  onChange={(e) => setPhysicianCountry(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 8,
+                    border: "1px solid #d0d7de",
+                  }}
+                  placeholder="e.g. gb, es"
+                />
+              </Box>
+            </Box>
             <Button
               variant="contained"
               color="primary"
