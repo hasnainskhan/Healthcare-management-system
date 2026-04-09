@@ -23,7 +23,7 @@ function Telemedicine() {
   const [error, setError] = useState("");
   const [session, setSession] = useState(null);
   const [language, setLanguage] = useState("en");
-  const [physicianCountry, setPhysicianCountry] = useState("gb");
+  const [physicianCountry, setPhysicianCountry] = useState("ie");
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -174,7 +174,7 @@ function Telemedicine() {
                     borderRadius: 8,
                     border: "1px solid #d0d7de",
                   }}
-                  placeholder="e.g. gb, es"
+                  placeholder="e.g. ie (partner default)"
                 />
               </Box>
             </Box>
