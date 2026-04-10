@@ -28,38 +28,59 @@ function buildWidgetUrl(uniqueId) {
 }
 
 function buildAbiPayload(user, body = {}) {
-  const { first_name, last_name } = splitName(user.name);
-  const dob = formatDob(user.dateOfBirth) || body.dob;
+  const useTestIdentity =
+    process.env.NODE_ENV !== "production" &&
+    String(process.env.ABI_USE_TEST_IDENTITY || "").toLowerCase() === "true";
+
+  const identityName = useTestIdentity
+    ? process.env.ABI_TEST_NAME || "Test Name"
+    : user.name;
+  const identityEmail = useTestIdentity
+    ? process.env.ABI_TEST_EMAIL || "support@clienttask.com"
+    : user.email;
+
+  const { first_name, last_name } = splitName(identityName);
+  const dob = formatDob(user.dateOfBirth) || body.dateOfBirth || body.dob;
   if (!dob) {
     const err = new Error("DOB_REQUIRED");
     err.code = "DOB_REQUIRED";
     throw err;
   }
 
-  const consentTs =
-    body.consent?.timestamp || new Date().toISOString();
-  const consentVer =
-    body.consent?.version ||
-    process.env.ABI_CONSENT_VERSION ||
-    "v1";
+  const language = body.language || process.env.ABI_DEFAULT_LANGUAGE;
+  const physicianCountry =
+    body.physicianCountry || process.env.ABI_DEFAULT_PHYSICIAN_COUNTRY;
+  const partnerName = body.partnerName || process.env.ABI_PARTNER_NAME;
+  if (!language || !physicianCountry) {
+    const err = new Error("ABI_LANGUAGE_COUNTRY_REQUIRED");
+    err.code = "ABI_LANGUAGE_COUNTRY_REQUIRED";
+    throw err;
+  }
+  if (!partnerName) {
+    const err = new Error("ABI_PARTNER_NAME_REQUIRED");
+    err.code = "ABI_PARTNER_NAME_REQUIRED";
+    throw err;
+  }
 
   return {
-    local_user_id: String(user._id),
-    first_name: body.first_name ?? first_name,
-    last_name: body.last_name ?? last_name,
-    dob,
-    email: user.email,
-    phone: body.phone ?? user.mobile ?? "",
-    address:
-      body.address ?? {
-        line1: user.city ? String(user.city) : "",
-        city: user.city || "",
-        postal: body.address?.postal || "",
-      },
-    consent: { timestamp: consentTs, version: consentVer },
-    assessment_form: body.assessment_form ?? {},
-    user_type: body.user_type ?? "free",
-    payment_status: body.payment_status ?? "not_paid",
+    // Minimal required fields from Abi docs:
+    partnerName,
+    language,
+    physicianCountry,
+
+    // Common optional fields (sent when we have them)
+    firstName: body.firstName ?? body.first_name ?? first_name,
+    lastName: body.lastName ?? body.last_name ?? last_name,
+    email: body.email ?? identityEmail,
+    phone: body.phone ?? user.mobile ?? undefined,
+    dateOfBirth: dob,
+    gender: body.gender ?? undefined,
+
+    // If Abi expects you to set uniqueId, keep it stable so the GoApp URL works.
+    uniqueId: body.uniqueId || `shms_${String(user._id)}`,
+
+    // Avoid sending notifications unless explicitly enabled
+    shouldNotify: body.shouldNotify ?? false,
   };
 }
 
@@ -103,7 +124,7 @@ const onboardUser = async (req, res) => {
     if (user.abiUserId) {
       return res.status(200).json({
         alreadyOnboarded: true,
-        abby_user_id: user.abiUserId,
+        uniqueId: user.abiUserId,
         instance_url: user.abiInstanceUrl,
         widget_url: buildWidgetUrl(user.abiUserId),
       });
@@ -119,34 +140,77 @@ const onboardUser = async (req, res) => {
             "Date of birth is required. Update your profile or include dob in the request body.",
         });
       }
+      if (e.code === "ABI_LANGUAGE_COUNTRY_REQUIRED") {
+        return res.status(400).json({
+          message:
+            "ABI requires language and physicianCountry. Set ABI_DEFAULT_LANGUAGE and ABI_DEFAULT_PHYSICIAN_COUNTRY or pass them in the request body.",
+        });
+      }
+      if (e.code === "ABI_PARTNER_NAME_REQUIRED") {
+        return res.status(400).json({
+          message:
+            "ABI requires partnerName. Set ABI_PARTNER_NAME or pass partnerName in the request body.",
+        });
+      }
       throw e;
     }
 
     const idempotencyKey = newIdempotencyKey();
     const data = await createAbiUser(payload, idempotencyKey);
 
-    user.abiUserId = data.abby_user_id;
-    user.abiInstanceUrl = data.instance_url || null;
+    user.abiUserId = data.uniqueId;
+    user.abiInstanceUrl = null;
     user.abiOnboardIdempotencyKey = idempotencyKey;
     user.abiOnboardedAt = new Date();
     await user.save();
 
     return res.status(201).json({
-      abby_user_id: data.abby_user_id,
-      instance_url: data.instance_url,
-      widget_url: buildWidgetUrl(data.abby_user_id),
-      created_at: data.created_at,
+      uniqueId: data.uniqueId,
+      widget_url: buildWidgetUrl(data.uniqueId),
+      userStatus: data.userStatus,
+      id: data.id,
     });
   } catch (err) {
     if (err.code === "ABI_NOT_CONFIGURED") {
       return res.status(503).json({ message: "ABI API is not configured." });
     }
-    if (err.status === 400 && err.data?.errors) {
-      return res.status(400).json({ errors: err.data.errors });
+    const netCode = err?.cause?.code || err?.code;
+    if (
+      netCode === "UND_ERR_CONNECT_TIMEOUT" ||
+      netCode === "ETIMEDOUT" ||
+      netCode === "ECONNREFUSED" ||
+      netCode === "ENOTFOUND"
+    ) {
+      return res.status(504).json({
+        message:
+          "Could not reach Abi API (network timeout). Check internet/DNS/firewall/VPN and that https://client-api.abi.ai is reachable from the backend host.",
+        ...(process.env.NODE_ENV !== "production" && { detail: String(netCode) }),
+      });
+    }
+    if (err.code === "ABI_LANGUAGE_COUNTRY_REQUIRED") {
+      return res.status(400).json({
+        message:
+          "ABI requires language and physicianCountry. Set ABI_DEFAULT_LANGUAGE and ABI_DEFAULT_PHYSICIAN_COUNTRY on the server or pass them in the request body.",
+      });
+    }
+    if (err.code === "ABI_PARTNER_NAME_REQUIRED") {
+      return res.status(400).json({
+        message:
+          "ABI requires partnerName. Set ABI_PARTNER_NAME on the server or pass partnerName in the request body.",
+      });
+    }
+    if (err.status === 400) {
+      if (err.data?.errors) {
+        return res.status(400).json({ errors: err.data.errors });
+      }
+      if (err.data?.message) {
+        return res.status(400).json({ message: err.data.message });
+      }
     }
     if (err.status === 401) {
       return res.status(502).json({
-        message: "ABI API rejected credentials. Check ABI_API_KEY.",
+        message:
+          "ABI API rejected credentials. Check ABI_API_KEY or token exchange.",
       });
     }
     if (err.status === 409) {

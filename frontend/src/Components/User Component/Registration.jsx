@@ -161,7 +161,11 @@ function Registration() {
               alignItems: "center",
             }}
           >
-            <img src="/Logo.png" alt="Logo" className="h-[200px] w-auto" />
+            <img
+              src="/logo.png"
+              alt="GoodPeople Medical Centre"
+              className="h-[200px] w-auto"
+            />
           </Grid>
 
           {/* Registration Form Section */}

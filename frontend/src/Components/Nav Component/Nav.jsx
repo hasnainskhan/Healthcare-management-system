@@ -68,9 +68,13 @@ function Nav() {
       <div className="w-full h-[70px] flex items-center mt-0">
         <div className="flex items-center ml-[60px]">
           <Link to="/" className="flex items-center cursor-pointer">
-            <img src="/Logo.png" alt="Logo" className="h-[70px]" />
+            <img
+              src="/logo.png"
+              alt="GoodPeople Medical Centre"
+              className="h-[70px]"
+            />
             <div className="text-[#2b2c6c] ml-2 font-bold text-lg">
-              MEDI FLOW
+              GoodPeople Medical Centre
               <div className="text-xs">HEALTH AND WELLNESS CARE</div>
             </div>
           </Link>

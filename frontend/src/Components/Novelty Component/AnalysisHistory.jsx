@@ -114,9 +114,13 @@ function AnalysisHistory() {
         <div className="bg-white shadow-md h-[70px] flex items-center">
           <div className="flex items-center ml-[60px]">
             <Link to="/" className="flex items-center cursor-pointer">
-              <img src="/Logo.png" alt="Logo" className="h-[60px]" />
+              <img
+                src="/logo.png"
+                alt="GoodPeople Medical Centre"
+                className="h-[60px]"
+              />
               <div className="text-[#2b2c6c] ml-2 font-bold text-lg">
-                MEDI FLOW
+                GoodPeople Medical Centre
                 <div className="text-xs">HEALTH AND WELLNESS CARE</div>
               </div>
             </Link>

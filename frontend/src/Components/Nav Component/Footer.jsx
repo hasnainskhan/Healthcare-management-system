@@ -27,7 +27,7 @@ function Footer() {
       {/* Footer Bottom Bar */}
       <div className="w-full absolute bottom-0 bg-white h-[49px] flex flex-col items-center justify-center">
         <span className="text-black text-[13px] font-normal">
-          © All Rights Reserved to the MEDI FLOW | Privacy Policy | Cookie Policy | Developed by{" "}
+          © All Rights Reserved to GoodPeople Medical Centre | Privacy Policy | Cookie Policy | Developed by{" "}
           <a
             href="https://www.upwork.com/freelancers/~01fb2e25952112c610"
             target="_blank"
@@ -42,9 +42,9 @@ function Footer() {
 
       {/* Footer Side Image */}
       <img
-        className="w-[350px] h-[350px] absolute bottom-[-35px] left-[-50px]"
-        src="/Logo2.png"
-        alt="Footer Side Image"
+        className="absolute left-4 top-4 h-[56px] w-auto object-contain opacity-90"
+        src="/logo.png"
+        alt="GoodPeople Medical Centre"
       />
     </div>
   );

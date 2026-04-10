@@ -4,6 +4,12 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+let tokenCache = {
+  accessToken: null,
+  refreshToken: null,
+  accessTokenExpiresAtMs: 0,
+};
+
 function getConfig() {
   const base = process.env.ABI_API_BASE_URL;
   const key = process.env.ABI_API_KEY;
@@ -15,14 +21,74 @@ function getConfig() {
   return { base: base.replace(/\/$/, ""), key };
 }
 
+async function fetchAccessToken() {
+  const { base, key } = getConfig();
+
+  // If cached and valid for at least 30s, reuse it.
+  if (
+    tokenCache.accessToken &&
+    tokenCache.accessTokenExpiresAtMs - Date.now() > 30_000
+  ) {
+    return tokenCache.accessToken;
+  }
+
+  // Try refresh first if we have a refresh token.
+  if (tokenCache.refreshToken) {
+    const res = await fetch(`${base}/partner/authorization/token/refresh`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": key,
+        refresh_token: tokenCache.refreshToken,
+      },
+    });
+    const text = await res.text();
+    if (res.ok) {
+      const data = text ? JSON.parse(text) : {};
+      tokenCache.accessToken = data.access_token || null;
+      tokenCache.refreshToken = data.refresh_token || tokenCache.refreshToken;
+      tokenCache.accessTokenExpiresAtMs = Date.now() + 3600 * 1000;
+      if (tokenCache.accessToken) return tokenCache.accessToken;
+    }
+  }
+
+  // Full token request (docs show x-api-key header).
+  const res = await fetch(`${base}/partner/authorization/token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": key,
+    },
+  });
+  const text = await res.text();
+  let data = {};
+  try {
+    if (text) data = JSON.parse(text);
+  } catch {
+    data = { raw: text };
+  }
+  if (!res.ok || !data.access_token) {
+    const err = new Error("ABI authentication failed");
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
+
+  tokenCache.accessToken = data.access_token;
+  tokenCache.refreshToken = data.refresh_token || null;
+  tokenCache.accessTokenExpiresAtMs = Date.now() + 3600 * 1000;
+  return tokenCache.accessToken;
+}
+
 /**
  * Low-level ABI HTTP call (no retry).
  */
 async function abiFetch(path, init = {}) {
-  const { base, key } = getConfig();
+  const { base } = getConfig();
   const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
+  const accessToken = await fetchAccessToken();
   const headers = {
-    Authorization: `Bearer ${key}`,
+    Authorization: `Bearer ${accessToken}`,
     ...(init.headers || {}),
   };
   const res = await fetch(url, { ...init, headers });
@@ -42,7 +108,12 @@ async function abiFetchWithRetry(path, init, options = {}) {
   const delays = options.delays || [500, 1000, 2000, 4000];
   let lastResult;
   for (let attempt = 0; attempt <= delays.length; attempt++) {
-    lastResult = await abiFetch(path, init);
+    try {
+      lastResult = await abiFetch(path, init);
+    } catch (e) {
+      // If auth failed, don't retry here.
+      throw e;
+    }
     const retryable =
       lastResult.status >= 500 && lastResult.status < 600;
     if (!retryable || attempt === delays.length) {
@@ -55,18 +126,18 @@ async function abiFetchWithRetry(path, init, options = {}) {
 
 async function createAbiUser(payload, idempotencyKey) {
   const result = await abiFetchWithRetry(
-    "/v1/users",
+    "/user",
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Idempotency-Key": idempotencyKey,
+        ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
       },
       body: JSON.stringify(payload),
     }
   );
 
-  if (result.status === 201 && result.data?.abby_user_id) {
+  if ((result.status === 200 || result.status === 201) && result.data?.uniqueId) {
     return result.data;
   }
 
@@ -76,14 +147,17 @@ async function createAbiUser(payload, idempotencyKey) {
   throw err;
 }
 
-async function getAbiUser(abbyUserId) {
-  const id = encodeURIComponent(abbyUserId);
-  const result = await abiFetchWithRetry(`/v1/users/${id}`, {
+async function getAbiUser(uniqueId) {
+  const id = encodeURIComponent(uniqueId);
+  // Docs support user search using query params.
+  const result = await abiFetchWithRetry(`/user/search?uniqueId=${id}`, {
     method: "GET",
     headers: { "Content-Type": "application/json" },
   });
 
   if (result.status === 200) {
+    // Search endpoints typically return an array; normalize.
+    if (Array.isArray(result.data)) return result.data[0] || null;
     return result.data;
   }
 

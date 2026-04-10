@@ -130,7 +130,11 @@ function Login() {
               alignItems: "center",
             }}
           >
-            <img src="/Logo.png" alt="Logo" className="h-[200px] w-auto" />
+            <img
+              src="/logo.png"
+              alt="GoodPeople Medical Centre"
+              className="h-[200px] w-auto"
+            />
           </Grid>
 
           {/* Login Form Section */}
@@ -166,7 +170,7 @@ function Login() {
                   color: "#1976d2",
                 }}
               >
-                MEDI FLOW
+                GoodPeople Medical Centre
               </Typography>
 
               {error && (
