@@ -41,6 +41,8 @@ import ReportItem from "../MedicalReports/ReportItem";
 import { getMedicalReports } from "../../../services/reportService";
 import { useNavigate } from 'react-router-dom';
 
+const apiBase = import.meta.env.VITE_API_URL || "";
+
 function PatientProfile() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -58,7 +60,7 @@ function PatientProfile() {
       try {
         const token = localStorage.getItem("token");
         const response = await axios.get(
-          `${import.meta.env.VITE_API_URL}/api/users/profile`,
+          `${apiBase}/api/users/profile`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -147,7 +149,7 @@ function PatientProfile() {
         const token = localStorage.getItem("token");
 
         axios
-          .delete(`${import.meta.env.VITE_API_URL}/api/users/delete`, {
+          .delete(`${apiBase}/api/users/delete`, {
             headers: { Authorization: `Bearer ${token}` },
           })
           .then(() => {
@@ -260,8 +262,11 @@ function PatientProfile() {
 
   // Get initial letters for avatar
   const getInitials = (name) => {
-    return name
-      .split(" ")
+    const safe = (name || "").trim();
+    if (!safe) return "U";
+    return safe
+      .split(/\s+/)
+      .filter(Boolean)
       .map((word) => word[0])
       .join("")
       .toUpperCase()
