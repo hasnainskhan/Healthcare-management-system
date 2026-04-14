@@ -13,7 +13,8 @@ import {
   Alert,
 } from "@mui/material";
 
-const api = () => import.meta.env.VITE_API_URL;
+// In production we proxy `/api/*` via nginx, so VITE_API_URL may be unset.
+const api = () => import.meta.env.VITE_API_URL || "";
 const getToken = () => localStorage.getItem("token");
 
 function Telemedicine() {
