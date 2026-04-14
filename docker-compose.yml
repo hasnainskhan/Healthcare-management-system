@@ -2,10 +2,46 @@ services:
   mongo:
     image: mongo:7
     container_name: smart-healthcare-mongo
-    ports:
-      - "27017:27017"
     volumes:
       - smart_healthcare_mongo_data:/data/db
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./BACKEND
+    container_name: smart-healthcare-backend
+    depends_on:
+      - mongo
+    environment:
+      # Server
+      NODE_ENV: production
+      PORT: 5000
+      # CORS origin should be your real domain in prod; default to nginx container origin
+      FRONTEND01: ${FRONTEND_ORIGIN:-http://localhost}
+      JWT_SECRET: ${JWT_SECRET}
+      MONGO_URI: ${MONGO_URI:-mongodb://mongo:27017/smart_healthcare}
+      # ABI
+      ABI_API_BASE_URL: ${ABI_API_BASE_URL}
+      ABI_API_KEY: ${ABI_API_KEY}
+      ABI_DEFAULT_LANGUAGE: ${ABI_DEFAULT_LANGUAGE:-en}
+      ABI_DEFAULT_PHYSICIAN_COUNTRY: ${ABI_DEFAULT_PHYSICIAN_COUNTRY:-ie}
+      ABI_PARTNER_NAME: ${ABI_PARTNER_NAME:-goodpeople}
+      ABI_WIDGET_BASE_URL: ${ABI_WIDGET_BASE_URL:-http://goapp.abi.ai}
+      ABI_WIDGET_PARTNER: ${ABI_WIDGET_PARTNER:-goodpeople}
+      ABI_WEBHOOK_SECRET: ${ABI_WEBHOOK_SECRET}
+      ABI_USE_TEST_IDENTITY: ${ABI_USE_TEST_IDENTITY:-false}
+      ABI_TEST_EMAIL: ${ABI_TEST_EMAIL:-support@clienttask.com}
+      ABI_TEST_NAME: ${ABI_TEST_NAME:-Test Name}
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: smart-healthcare-frontend
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
     restart: unless-stopped
 
 volumes:
