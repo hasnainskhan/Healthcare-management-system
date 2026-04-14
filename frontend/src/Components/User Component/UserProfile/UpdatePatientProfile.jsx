@@ -31,6 +31,7 @@ import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import NavigateBeforeIcon from "@mui/icons-material/NavigateBefore";
 
 function UpdatePatientProfile({ user, onClose, onUpdate }) {
+  const apiBase = import.meta.env.VITE_API_URL || "";
   // Country and City options
   const countryOptions = {
     SriLanka: ["Colombo", "Kandy", "Galle", "Jaffna", "Kurunegala"],
@@ -81,8 +82,7 @@ function UpdatePatientProfile({ user, onClose, onUpdate }) {
     const nameRegex = /^[A-Za-z\s\-]+$/; // Allow spaces and hyphens
 
     const mobileRegex = /^[0-9]{10}$/;
-    const emailRegex =
-      /^[a-zA-Z0-9._%+-]+@(gmail\.com|icloud\.com|outlook\.com)$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const today = new Date().toISOString().split("T")[0];
 
     switch (name) {
@@ -158,7 +158,7 @@ function UpdatePatientProfile({ user, onClose, onUpdate }) {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/users/${user._id}`,
+        `${apiBase}/api/users/${user._id}`,
         formData,
         {
           headers: { Authorization: `Bearer ${token}` },
