@@ -82,8 +82,9 @@ mongoose
   .then(() => {
     console.log("Connected to MongoDB");
     console.log("Database URL:", process.env.MONGO_URI);
-    // Only start server locally, not on Vercel
-    if (process.env.NODE_ENV !== "production") {
+    // Start HTTP server only when executed directly.
+    // (When imported by serverless runtimes, we just export `app`.)
+    if (require.main === module) {
       const PORT = process.env.PORT || 5000;
       app.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
