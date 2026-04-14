@@ -46,8 +46,7 @@ function Registration() {
     validateField(name, value); // Real-time validation
   };
   const validateField = (name, value) => {
-    const emailRegex =
-      /^[a-zA-Z0-9._%+-]+@(gmail\.com|icloud\.com|outlook\.com)$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     const passwordRegex =
       /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
@@ -109,7 +108,7 @@ function Registration() {
     const { name, email, password } = formData;
 
     try {
-            await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/register`, {
+      await axios.post(`${import.meta.env.VITE_API_URL || ""}/api/auth/register`, {
         name,
         email,
         password,
