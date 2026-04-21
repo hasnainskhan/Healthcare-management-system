@@ -34,10 +34,7 @@ function UpdatePatientProfile({ user, onClose, onUpdate }) {
   const apiBase = import.meta.env.VITE_API_URL || "";
   // Country and City options
   const countryOptions = {
-    SriLanka: ["Colombo", "Kandy", "Galle", "Jaffna", "Kurunegala"],
-    USA: ["New York", "Los Angeles", "Chicago", "Houston", "Miami"],
-    UK: ["London", "Manchester", "Birmingham", "Liverpool"],
-    India: ["Delhi", "Mumbai", "Bangalore", "Chennai"],
+    Ireland: ["Dublin", "Cork", "Galway", "Limerick", "Waterford"],
   };
 
   const [formData, setFormData] = useState({
@@ -81,7 +78,7 @@ function UpdatePatientProfile({ user, onClose, onUpdate }) {
 
     const nameRegex = /^[A-Za-z\s\-]+$/; // Allow spaces and hyphens
 
-    const mobileRegex = /^[0-9]{10}$/;
+    const mobileRegex = /^(?:08\d{8}|\+3538\d{8})$/;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const today = new Date().toISOString().split("T")[0];
 
@@ -103,9 +100,9 @@ function UpdatePatientProfile({ user, onClose, onUpdate }) {
         break;
 
       case "mobile":
-        if (value && !/^07[0-9]{8}$/.test(value)) {
+        if (value && !mobileRegex.test(value.replace(/\s+/g, ""))) {
           newErrors.mobile =
-            "Mobile number must start with 07 and have 10 digits.";
+            "Use an Irish mobile number (e.g. 08XXXXXXXX or +3538XXXXXXXX).";
         } else {
           delete newErrors.mobile;
         }
@@ -321,14 +318,13 @@ function UpdatePatientProfile({ user, onClose, onUpdate }) {
                       onChange={handleChange}
                       error={!!errors.mobile}
                       helperText={errors.mobile}
-                      placeholder="07XXXXXXXX"
+                      placeholder="08XXXXXXXX or +3538XXXXXXXX"
                       inputProps={{
                         inputMode: "numeric",
-                        pattern: "07[0-9]{8}",
-                        maxLength: 10,
+                        maxLength: 13,
                       }}
                       onKeyPress={(e) => {
-                        if (!/[0-9]/.test(e.key)) {
+                        if (!/[0-9+]/.test(e.key)) {
                           e.preventDefault();
                         }
                       }}
