@@ -1,0 +1,215 @@
+GoodPeople Medical Centre — ABI Integration & Deployment Summary
+===============================================================
+
+Date: 2026-04-14
+Project: Smart-Healthcare-Management-System
+
+
+1) Scope / Objective
+--------------------
+Integrate Abi (ABI) into the system to:
+- Allow users to login to our app (existing email/password auth).
+- Onboard/register users into Abi via Abi REST API (server-side).
+- Store Abi identifiers in our database.
+- Embed the Abi GoApp widget via iframe using the returned unique identifier.
+- (Optional) Accept Abi webhook callbacks securely (HMAC signature verification).
+- Provide Docker-based deployment (MongoDB + Backend + Frontend via nginx).
+- Apply branding updates (logo + metadata + footer credit).
+
+
+2) ABI API Integration (Option 1 — confirmed by client)
+-------------------------------------------------------
+Reference docs:
+- https://docs.abi.ai/abi-api/users/create-user
+
+Confirmed by client:
+- Base URL: https://client-api.abi.ai
+- Create user: POST /user
+- Unique identifier field: uniqueId
+- Partner name: goodpeople
+- Supported default pair: language=en, physicianCountry=ie
+
+Auth method:
+- Token exchange (required):
+  - POST /partner/authorization/token with header: x-api-key: <ABI_API_KEY>
+  - Then all API calls use Authorization: Bearer <access_token>
+
+Important security rules:
+- ABI_API_KEY is stored server-side only (BACKEND/.env or production .env).
+- Do NOT expose ABI_API_KEY in the frontend.
+
+
+3) Backend Changes
+------------------
+3.1 New/updated routes (JWT-protected)
+- Base path: /api/abi
+  - GET  /api/abi/session
+    Returns onboarding status + widget_url (if onboarded) + any stored GP review/payment fields.
+
+  - POST /api/abi/onboard
+    Creates Abi user via POST /user and stores uniqueId in MongoDB.
+    Uses defaults from env for partnerName/language/physicianCountry unless overridden in request body.
+
+  - GET  /api/abi/remote
+    Fetches Abi user info using /user/search?uniqueId=<id> (server-to-server).
+
+3.2 Webhook endpoint (optional)
+- POST /api/abi/webhook
+  - Mounted with express.raw({ type: "application/json" }) to verify HMAC signatures.
+  - Signature header supported: X-Abby-Signature / X-Abi-Signature
+  - Secret: ABI_WEBHOOK_SECRET (optional; required for verification)
+  - Stores incoming event details into user record where applicable.
+
+3.3 ABI API client implementation
+File: BACKEND/Services/abiApiClient.js
+- Handles token exchange and caching (access_token + refresh_token).
+- Uses Authorization: Bearer <access_token> for subsequent calls.
+- Retries 5xx responses with exponential backoff.
+
+3.4 Data model additions
+File: BACKEND/Models/UserModel.js
+Added fields for Abi mapping & status:
+- abiUserId (stores Abi uniqueId)
+- abiInstanceUrl (reserved; not used in current Abi Option 1)
+- abiOnboardIdempotencyKey, abiOnboardedAt
+- abiGpReviewSummary, abiGpReviewedAt
+- abiPaymentStatus
+
+3.5 Production server startup fix
+File: BACKEND/index.js
+Change: server now listens in Docker/production when executed directly:
+- Previously, app.listen() ran only when NODE_ENV !== "production".
+- Now, it runs when require.main === module.
+This fixed nginx -> backend 502 errors in production.
+
+
+4) Frontend Changes
+-------------------
+4.1 Telemedicine page + widget embed
+Route: /Telemedicine
+File: frontend/src/Components/User Component/Telemedicine.jsx
+- Requires login (JWT token in localStorage).
+- Calls backend:
+  - GET  /api/abi/session
+  - POST /api/abi/onboard with { language, physicianCountry }
+- Embeds widget via iframe:
+  http://goapp.abi.ai/goodpeople/{uniqueId}
+- Defaults for language/country updated to en + ie.
+- Handles 401 by clearing token and redirecting to /login.
+- Uses relative /api/... when VITE_API_URL is unset (production nginx proxy).
+
+4.2 Production API base handling (fix for server)
+Many components originally used `${import.meta.env.VITE_API_URL}/api/...` which fails if VITE_API_URL
+is not set at build time in production. Fix applied in key pages/services:
+- Use `${import.meta.env.VITE_API_URL || ""}/api/...` so production uses `/api/...` (nginx proxy).
+
+Fixed/updated files include:
+- frontend/src/Components/User Component/Telemedicine.jsx
+- frontend/src/Components/User Component/Login.jsx
+- frontend/src/Components/User Component/Registration.jsx
+- frontend/src/Components/Doctor Component/DoctorLogin.jsx
+- frontend/src/Components/User Component/UserProfile/PatientProfile.jsx
+- frontend/src/Components/User Component/UserProfile/UpdatePatientProfile.jsx
+- frontend/src/services/reportService.js
+
+4.3 Registration form validation
+File: frontend/src/Components/User Component/Registration.jsx
+- Email validation updated to allow any valid domain (so support@clienttask.com is accepted).
+
+4.4 User Account crash fix
+File: frontend/src/Components/User Component/UserProfile/PatientProfile.jsx
+- getInitials(name) now guards against missing/undefined names to prevent "split of undefined" crashes.
+
+
+5) Branding Updates (GoodPeople Medical Centre)
+-----------------------------------------------
+5.1 Site metadata
+File: frontend/index.html
+- Title: "GoodPeople Medical Centre"
+- Favicon: /logo.png
+- Added description + OpenGraph tags.
+
+5.2 Logo updates (use public/logo.png)
+Replaced /Logo.png usage with /logo.png across key UI components.
+Footer logo styling adjusted and moved to top-left area of the footer blue background.
+
+5.3 Footer credit
+- Removed "Developed by ITPM_Y3S1_WE_91 Group"
+- Added "Developed by Hasnain Babar" with link:
+  https://www.upwork.com/freelancers/~01fb2e25952112c610
+
+
+6) Deployment (Server) — Docker Compose
+---------------------------------------
+Added:
+- BACKEND/Dockerfile
+- frontend/Dockerfile
+- frontend/nginx.conf (serves SPA + proxies /api/ -> backend:5000)
+- docker-compose.yml (root): mongo + backend + frontend
+- .env.production.example (root): server configuration template
+
+Deploy steps (high level):
+1) On server, install Docker + docker compose (v2 recommended).
+2) Place project on server (git clone or upload).
+3) Copy .env.production.example to .env and fill:
+   - JWT_SECRET (required)
+   - FRONTEND_ORIGIN (e.g. http://157.173.113.20)
+   - ABI_API_KEY (required for Abi calls)
+4) Run:
+   docker compose up -d --build
+
+Notes:
+- In production, nginx container exposes port 80.
+- All API calls should go through /api/... and are proxied internally to backend.
+
+
+7) Known Issue / Vendor Dependency
+----------------------------------
+Even when onboarding succeeds (uniqueId created and iframe loads), the widget may show:
+"We encountered an issue while processing your request..."
+Browser Network/Console shows:
+- POST https://<abi aws api gateway>/prod/flow -> 500 Internal Server Error
+
+This 500 is on Abi/GoApp backend (vendor side), not our application. To resolve:
+- Provide Abi support with partnerName (goodpeople), uniqueId, timestamp, and the failing /prod/flow request details.
+
+
+8) Test Checklist (Expected)
+----------------------------
+Backend health:
+- Backend container logs show:
+  "Connected to MongoDB"
+  "Server running on port 5000"
+
+App:
+- Register user (e.g. Test Name / support@clienttask.com) then login.
+- User Account loads (no blank page / no split error).
+- Update profile works (PUT /api/users/:id returns 200; no 405).
+- Telemedicine:
+  - GET /api/abi/session returns 200
+  - POST /api/abi/onboard returns 201 with uniqueId and widget_url
+  - iframe loads widget URL
+
+
+9) Environment Variables (Summary)
+----------------------------------
+Backend / core:
+- JWT_SECRET
+- MONGO_URI
+- FRONTEND01 (CORS allow origin; set from FRONTEND_ORIGIN in docker compose)
+
+Abi:
+- ABI_API_BASE_URL=https://client-api.abi.ai
+- ABI_API_KEY=<secret>
+- ABI_DEFAULT_LANGUAGE=en
+- ABI_DEFAULT_PHYSICIAN_COUNTRY=ie
+- ABI_PARTNER_NAME=goodpeople
+- ABI_WIDGET_BASE_URL=http://goapp.abi.ai
+- ABI_WIDGET_PARTNER=goodpeople
+- ABI_WEBHOOK_SECRET (optional)
+
+Dev-only (optional):
+- ABI_USE_TEST_IDENTITY=true|false
+- ABI_TEST_EMAIL=support@clienttask.com
+- ABI_TEST_NAME=Test Name
+
