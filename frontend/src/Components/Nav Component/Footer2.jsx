@@ -2,8 +2,8 @@ import React from "react";
 
 function Footer2() {
   return (
-    <div className="w-full h-[49px] bg-[#2b2c6c] flex items-center justify-center">
-      <div className="text-center text-white text-[13px] font-normal font-['Hanken_Grotesk'] leading-none tracking-wide">
+    <div className="w-full bg-[#2b2c6c] py-3">
+      <div className="px-4 text-center text-white text-[12px] font-normal font-['Hanken_Grotesk'] leading-snug tracking-wide">
         © All Rights Reserved to GoodPeople Medical Centre | Privacy Policy | Cookie Policy
         | Developed by{" "}
         <a

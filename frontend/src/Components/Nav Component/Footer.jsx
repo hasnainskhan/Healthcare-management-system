@@ -4,49 +4,68 @@ import "@fortawesome/fontawesome-free/css/all.min.css";
 
 function Footer() {
   return (
-    <div className="w-full h-[226px] bg-[#2b2c6c] flex flex-col justify-between relative">
-      
-      {/* Social Icons */}
-      <div className="absolute top-[46px] left-1/2 transform -translate-x-1/2 flex space-x-6 text-white text-3xl">
-        <i className="text-5xl fa-brands fa-facebook"></i>
-        <i className="text-5xl fa-brands fa-whatsapp"></i>
-        <i className="text-5xl fa-brands fa-twitter"></i>
-        <i className="text-5xl fa-brands fa-instagram"></i>
-      </div>
+    <footer className="w-full bg-[#2b2c6c]">
+      <div className="mx-auto max-w-7xl px-4 py-6">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+          {/* Logo */}
+          <div className="flex items-center justify-center sm:justify-start">
+            <img
+              className="h-[52px] w-auto object-contain opacity-95"
+              src="/logo.png"
+              alt="GoodPeople Medical Centre"
+            />
+          </div>
 
-      {/* Navigation Links */}
-      <div className="w-full flex justify-center items-center absolute top-[130px] space-x-6">
-        <Link to="/About-Us" className="text-xl font-normal text-white">About Us</Link>
-        <Link to="/Contact-Us" className="text-xl font-normal text-white">Contact Us</Link>
-        <Link to="/Privacy-Policy" className="text-xl font-normal text-white">Privacy Policy</Link>
-        <Link to="/FAQ" className="text-xl font-normal text-white">FAQ</Link>
-        <Link to="/Blog" className="text-xl font-normal text-white">Blog</Link>
-        <Link to="/Help" className="text-xl font-normal text-white">Help & Artist</Link>
+          {/* Social Icons */}
+          <div className="flex justify-center gap-5 text-white">
+            <i className="fa-brands fa-facebook text-3xl"></i>
+            <i className="fa-brands fa-whatsapp text-3xl"></i>
+            <i className="fa-brands fa-twitter text-3xl"></i>
+            <i className="fa-brands fa-instagram text-3xl"></i>
+          </div>
+        </div>
+
+        {/* Navigation Links */}
+        <div className="mt-5 flex flex-wrap justify-center gap-x-6 gap-y-2 text-white">
+          <Link to="/About-Us" className="text-sm font-medium hover:underline">
+            About Us
+          </Link>
+          <Link to="/Contact-Us" className="text-sm font-medium hover:underline">
+            Contact Us
+          </Link>
+          <Link to="/Privacy-Policy" className="text-sm font-medium hover:underline">
+            Privacy Policy
+          </Link>
+          <Link to="/FAQ" className="text-sm font-medium hover:underline">
+            FAQ
+          </Link>
+          <Link to="/Blog" className="text-sm font-medium hover:underline">
+            Blog
+          </Link>
+          <Link to="/Help" className="text-sm font-medium hover:underline">
+            Help & Artist
+          </Link>
+        </div>
       </div>
 
       {/* Footer Bottom Bar */}
-      <div className="w-full absolute bottom-0 bg-white h-[49px] flex flex-col items-center justify-center">
-        <span className="text-black text-[13px] font-normal">
-          © All Rights Reserved to GoodPeople Medical Centre | Privacy Policy | Cookie Policy | Developed by{" "}
-          <a
-            href="https://www.upwork.com/freelancers/~01fb2e25952112c610"
-            target="_blank"
-            rel="noreferrer"
-            className="underline"
-          >
-            Hasnain Babar
-          </a>
-        </span>
-        <span className="text-black text-[13px] font-bold">Protected By Copyscape</span>
+      <div className="w-full bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-3 text-center text-[12px] text-black">
+          <div className="leading-snug">
+            © All Rights Reserved to GoodPeople Medical Centre | Privacy Policy | Cookie Policy | Developed by{" "}
+            <a
+              href="https://www.upwork.com/freelancers/~01fb2e25952112c610"
+              target="_blank"
+              rel="noreferrer"
+              className="underline"
+            >
+              Hasnain Babar
+            </a>
+          </div>
+          <div className="font-bold leading-snug">Protected By Copyscape</div>
+        </div>
       </div>
-
-      {/* Footer Side Image */}
-      <img
-        className="absolute left-4 top-4 h-[56px] w-auto object-contain opacity-90"
-        src="/logo.png"
-        alt="GoodPeople Medical Centre"
-      />
-    </div>
+    </footer>
   );
 }
 
