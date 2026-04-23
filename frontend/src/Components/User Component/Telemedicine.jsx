@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import axios from "axios";
 import Nav from "../Nav Component/Nav";
 import Footer from "../Nav Component/Footer";
@@ -19,12 +20,14 @@ const getToken = () => localStorage.getItem("token");
 
 function Telemedicine() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [session, setSession] = useState(null);
   const [language, setLanguage] = useState("en");
   const [physicianCountry, setPhysicianCountry] = useState("ie");
+  const [autoTried, setAutoTried] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -61,6 +64,22 @@ function Telemedicine() {
       cancelled = true;
     };
   }, [navigate]);
+
+  // Optional: if user comes from signup (`?auto=1`) then try onboarding once.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search || "");
+    const shouldAuto = params.get("auto") === "1";
+    if (!shouldAuto) return;
+    if (loading) return;
+    if (busy) return;
+    if (autoTried) return;
+    if (session?.onboarded) return;
+
+    setAutoTried(true);
+    // Fire and forget; errors will show in the same UI.
+    handleOnboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search, loading, busy, autoTried, session?.onboarded]);
 
   const handleOnboard = async () => {
     setBusy(true);

@@ -28,12 +28,14 @@ function Registration() {
     email: "",
     password: "",
     confirmPassword: "",
+    dateOfBirth: "",
   });
   const [errors, setErrors] = useState({
     name: "",
     email: "",
     password: "",
     confirmPassword: "",
+    dateOfBirth: "",
   });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -87,6 +89,12 @@ function Registration() {
             value !== formData.password ? "Passwords do not match" : "",
         }));
         break;
+      case "dateOfBirth":
+        setErrors((prev) => ({
+          ...prev,
+          dateOfBirth: value ? "" : "Date of birth is required",
+        }));
+        break;
       default:
         break;
     }
@@ -105,14 +113,19 @@ function Registration() {
       return;
     }
 
-    const { name, email, password } = formData;
+    const { name, email, password, dateOfBirth } = formData;
 
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL || ""}/api/auth/register`, {
+      const { data } = await axios.post(`${import.meta.env.VITE_API_URL || ""}/api/auth/register`, {
         name,
         email,
         password,
+        dateOfBirth,
       });
+
+      if (data?.token) {
+        localStorage.setItem("token", data.token);
+      }
 
       Swal.fire({
         toast: true,
@@ -131,7 +144,8 @@ function Registration() {
       });
 
       setTimeout(() => {
-        navigate("/login");
+        // Land the user in telemedicine; Telemedicine can auto-onboard if configured.
+        navigate("/Telemedicine?auto=1");
       }, 2500);
     } catch (error) {
       Swal.fire({
@@ -295,6 +309,19 @@ function Registration() {
                       </InputAdornment>
                     ),
                   }}
+                />
+
+                <TextField
+                  fullWidth
+                  margin="normal"
+                  label="Date of Birth"
+                  name="dateOfBirth"
+                  type="date"
+                  value={formData.dateOfBirth}
+                  onChange={handleChange}
+                  error={!!errors.dateOfBirth}
+                  helperText={errors.dateOfBirth}
+                  InputLabelProps={{ shrink: true }}
                 />
 
                 <Button

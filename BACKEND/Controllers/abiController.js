@@ -62,7 +62,7 @@ function buildAbiPayload(user, body = {}) {
     throw err;
   }
 
-  return {
+  const payload = {
     // Minimal required fields from Abi docs:
     partnerName,
     language,
@@ -76,12 +76,16 @@ function buildAbiPayload(user, body = {}) {
     dateOfBirth: dob,
     gender: body.gender ?? undefined,
 
-    // If Abi expects you to set uniqueId, keep it stable so the GoApp URL works.
-    uniqueId: body.uniqueId || `shms_${String(user._id)}`,
-
     // Avoid sending notifications unless explicitly enabled
     shouldNotify: body.shouldNotify ?? false,
   };
+
+  // Abi docs state the API generates `uniqueId`. Only send it if explicitly provided.
+  if (body.uniqueId) {
+    payload.uniqueId = body.uniqueId;
+  }
+
+  return payload;
 }
 
 const getSession = async (req, res) => {
@@ -159,7 +163,7 @@ const onboardUser = async (req, res) => {
     const data = await createAbiUser(payload, idempotencyKey);
 
     user.abiUserId = data.uniqueId;
-    user.abiInstanceUrl = null;
+    user.abiInstanceUrl = data.instanceUrl || data.instance_url || null;
     user.abiOnboardIdempotencyKey = idempotencyKey;
     user.abiOnboardedAt = new Date();
     await user.save();

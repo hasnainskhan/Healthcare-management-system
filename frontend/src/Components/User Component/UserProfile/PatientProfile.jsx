@@ -50,6 +50,7 @@ function PatientProfile() {
   const [reports, setReports] = useState([]);
   const [loadingReports, setLoadingReports] = useState(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [authError, setAuthError] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const navigate = useNavigate();
@@ -59,6 +60,10 @@ function PatientProfile() {
     const fetchUser = async () => {
       try {
         const token = localStorage.getItem("token");
+        if (!token) {
+          setAuthError(true);
+          return;
+        }
         const response = await axios.get(
           `${apiBase}/api/users/profile`,
           {
@@ -67,6 +72,11 @@ function PatientProfile() {
         );
         setUser(response.data);
       } catch (error) {
+        if (error?.response?.status === 401) {
+          localStorage.removeItem("token");
+          setAuthError(true);
+          return;
+        }
         console.error("Error fetching user data:", error);
       } finally {
         setLoading(false);
@@ -84,6 +94,11 @@ function PatientProfile() {
         const data = await getMedicalReports();
         setReports(data);
       } catch (error) {
+        if (error?.response?.status === 401) {
+          localStorage.removeItem("token");
+          setAuthError(true);
+          return;
+        }
         console.error("Error fetching reports:", error);
       } finally {
         setLoadingReports(false);
@@ -219,6 +234,36 @@ function PatientProfile() {
         }}
       >
         <CircularProgress sx={{ color: "#e6317d" }} />
+      </Box>
+    );
+  }
+
+  if (authError || !user) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "70vh",
+          px: 2,
+          textAlign: "center",
+        }}
+      >
+        <Typography variant="h6" sx={{ mb: 1, color: "#2b2c6c", fontWeight: 700 }}>
+          Please sign in again
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Your session expired or you are not logged in.
+        </Typography>
+        <Button
+          variant="contained"
+          onClick={() => navigate("/login")}
+          sx={{ bgcolor: "#2b2c6c", ":hover": { bgcolor: "#1a1b45" } }}
+        >
+          Go to Login
+        </Button>
       </Box>
     );
   }
